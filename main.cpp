@@ -40,28 +40,29 @@ void SetupServerSocket()
       continue;
     if ((int)buff[4] >> 4 != 0x4)
     {
-      std::cout << "Not ipv4 0x" << (int)buff[4] << '\n';
       continue;
     }
+
     IPPacket* ip = IPPacket::Parse(buff + 4, buffsize);
     if (ip->Protocol != 0x6)
     {
-      std::cout << "Not a TCP packet 0x" << ip->Protocol << '\n';
       continue;
-
     }
 
 
-    std::cout << "IP Payload:\n";
     PrintPacket(ip->Payload, ip->PayloadLength);
+    char* packet = ip->Assemble();
+    PrintPacket(packet, ip->PayloadLength);
+
     TcpPacket* tcp = TcpPacket::Parse(ip->Payload, ip->PayloadLength);
     std::cout << tcp->PayloadSize << " bytes from " << ip->SourceIP.Stringify()
               << ":" << tcp->SourcePort << " to " << ip->DestinationIP.Stringify()
               << ":" << tcp->DestPort << '\n';
 
-    // if (-1 != FindString(tcp->Payload, "GET", tcp->PayloadSize, 3))
-    //   std::cout << tcp->Payload << '\n';
 
+    delete[] packet;
+    delete ip;
+    delete tcp;
   }
 }
 

@@ -74,16 +74,13 @@ public:
     packet->FragmentOffset = ((data[6] & 0x1f) << 8) + data[7];
     packet->TimeToLive = data[8];
     packet->Protocol = data[9];
-    packet->HeaderChecksum = (data[10] << 8) + data[11];
+    packet->HeaderChecksum = (data[10] & 0xf0) + data[11];
     packet->SourceIP = IPAddress::Parse(data + 12);
     packet->DestinationIP = IPAddress::Parse(data + 16);
     //////////////////
     //OPTIONS HERE
     //////////////////
     packet->PayloadLength = packet->TotalLength - (packet->IHL * 4);
-    //std::cout << "payload len is: " << packet->PayloadLength << "IHL: "<< packet->IHL << '\n';
-    //std::cout << "Datalen: " << (packet->IHL * 4) << " plen " << packet->TotalLength << '\n';
-    std::cout.flush();
 
     if (packet->PayloadLength != 0)
     {
@@ -93,6 +90,35 @@ public:
     }
 
     return packet;
+  }
+
+  char* Assemble()
+  {
+    char* data = new char[TotalLength];
+
+    data[0] = Version << 0x4;
+    data[0] += IHL;
+    data[1] = TypeOfService;
+    data[2] = TotalLength >> 8;
+    data[3] = (TotalLength & 0x0f);
+    data[4] = (Identification >> 8);
+    data[5] = (Identification & 0x0f);
+    data[6] = Flags << 5;
+    data[6] += (FragmentOffset >> 8) & 0x1f;
+    data[7] = FragmentOffset & 0x0f;
+    data[8] = TimeToLive;
+    data[9] = Protocol;
+    data[10] = (HeaderChecksum >> 8);
+    data[11] = HeaderChecksum & 0x0f;
+    memcpy(data + 12, SourceIP.blocks, 4);
+    memcpy(data + 16, DestinationIP.blocks, 4);
+
+    if (packet->PayloadLength != 0)
+    {
+      memcpy(data + 20, packet->Payload, packet->PayloadLength);
+    }
+
+    return data;
   }
 
   ~IPPacket()
