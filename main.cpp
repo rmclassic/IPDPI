@@ -18,6 +18,7 @@
 void SetupServerSocket();
 int FindString(const char* instr, const char* str, int instrsize, int strsize);
 int ReadBuffer(char*, int, int);
+int WriteBuffer(char*, int, int);
 int InitializeTun();
 
 int main()
@@ -34,7 +35,7 @@ void SetupServerSocket()
   while (true)
   {
     int buffsize = ReadBuffer(buff, 65535, tun_fd);
-    PrintPacket(buff, buffsize);
+    
 
     if (buffsize < 14)
       continue;
@@ -48,18 +49,30 @@ void SetupServerSocket()
     {
       continue;
     }
+   
 
+    if (ip->SourceIP.Stringify() == "10.0.0.1")
+    	ip->SourceIP = "10.0.0.2";
+    
+    if (ip->DestinationIP.Stringify() == "10.0.0.1")
+	ip->DestinationIP = "10.0.0.2";
 
-    PrintPacket(ip->Payload, ip->PayloadLength);
     char* packet = ip->Assemble();
-    PrintPacket(packet, ip->PayloadLength);
+    PrintPacket(packet, ip->TotalLength);
 
     TcpPacket* tcp = TcpPacket::Parse(ip->Payload, ip->PayloadLength);
     std::cout << tcp->PayloadSize << " bytes from " << ip->SourceIP.Stringify()
               << ":" << tcp->SourcePort << " to " << ip->DestinationIP.Stringify()
               << ":" << tcp->DestPort << '\n';
 
+    char* finalpacket = new char[ip->TotalLength + 4];
+    finalpacket[0] = 0;
+    finalpacket[1] = 0;
+    finalpacket[2] = 8;
+    finalpacket[3] = 0;
+    memcpy(finalpacket + 4, packet, ip->TotalLength);
 
+    WriteBuffer(finalpacket, ip->TotalLength + 4, tun_fd);
     delete[] packet;
     delete ip;
     delete tcp;
@@ -126,7 +139,10 @@ int InitializeTun()
   return tun_alloc(wow);
 }
 
-
+int WriteBuffer(char* buf, int size, int tun_fd)
+{
+  return write(tun_fd, buf, size);
+}
 
 int ReadBuffer(char* buf, int maxbuf, int tun_fd)
 {
